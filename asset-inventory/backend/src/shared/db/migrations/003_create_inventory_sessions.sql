@@ -1,0 +1,1 @@
+-- Migración: tabla inventory_sessions

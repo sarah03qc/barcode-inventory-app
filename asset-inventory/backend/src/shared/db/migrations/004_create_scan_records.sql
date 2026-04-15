@@ -1,0 +1,1 @@
+-- Migración: tabla scan_records
