@@ -1,9 +1,12 @@
 const env = require('./src/config/env');
 const { testConnection } = require('./src/shared/db/connection');
+const app = require('./app');
 
 async function start() {
   await testConnection();
-  console.log(`✓ Server running on port ${env.PORT}`);
+  app.listen(env.PORT, () => {
+    console.log(`✓ Server running on port ${env.PORT}`);
+  });
 }
 
 start().catch((err) => {

@@ -1,0 +1,6 @@
+asset_number,description,responsible,functional_center,dependency,serial_number,location
+ACT-001,Laptop Dell XPS 15,Juan Perez,IT,Sistemas,SN-A1B2C3,Oficina 101
+ACT-002,Monitor LG 27 pulgadas,Maria Lopez,Contabilidad,Finanzas,SN-D4E5F6,Oficina 202
+ACT-003,Silla ergonomica,Carlos Ruiz,RRHH,Talento Humano,,Sala de juntas
+ACT-004,Proyector Epson,Ana Torres,Capacitacion,Educacion,SN-G7H8I9,Auditorio
+ACT-005,Impresora HP LaserJet,Luis Gomez,IT,Sistemas,SN-J0K1L2,Recepcion
