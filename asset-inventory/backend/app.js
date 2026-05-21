@@ -7,6 +7,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const swaggerUi   = require('swagger-ui-express');
+const swaggerSpec = require('./src/config/swagger');
+
+// monta la UI en /api-docs
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 app.use('/api/assets', assetsRoutes);
 
 const inventoryRoutes = require('./src/routes/inventory.routes');
