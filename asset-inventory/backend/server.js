@@ -5,7 +5,7 @@ const app = require('./app');
 async function start() {
   await testConnection();
   app.listen(env.PORT, () => {
-    console.log(`✓ Server running on port ${env.PORT}`);
+    console.log(`:) Server running on port ${env.PORT}`);
   });
 }
 

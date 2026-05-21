@@ -11,7 +11,18 @@ async function createBatch(filename, totalRecords) {
   return rows[0];
 }
 
-// bulk insert de todos los activos en una sola query parametrizada
+// divide un array en sub-arrays de tamaño máximo chunkSize
+// necesario porque PostgreSQL tiene un límite de 65535 parámetros por query
+function chunk(arr, chunkSize) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += chunkSize) {
+    chunks.push(arr.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+// bulk insert por lotes para evitar el límite de parámetros de PostgreSQL
+// con 7 columnas por fila el máximo seguro es ~9285 filas por lote
 async function insertAssets(assets, batchId) {
   if (!assets.length) return [];
 
@@ -25,30 +36,38 @@ async function insertAssets(assets, batchId) {
     'upload_batch_id',
   ];
   const perRow = cols.length;
+  const chunkSize = Math.floor(65000 / perRow); // ~9285
 
-  // construye ($1,$2,...,$7), ($8,...,$14), ...
-  const placeholders = assets.map((_, i) =>
-    `(${cols.map((_, j) => `$${i * perRow + j + 1}`).join(', ')})`,
-  );
+  const batches = chunk(assets, chunkSize);
+  const inserted = [];
 
-  const params = assets.flatMap(asset => [
-    asset.asset_number,
-    asset.description ?? null,
-    asset.responsible ?? null,
-    asset.functional_center ?? null,
-    asset.dependency ?? null,
-    asset.metadata ? JSON.stringify(asset.metadata) : null,
-    batchId,
-  ]);
+  for (const batch of batches) {
+    const placeholders = batch.map((_, i) =>
+      `(${cols.map((_, j) => `$${i * perRow + j + 1}`).join(', ')})`,
+    );
 
-  const { rows } = await pool.query(
-    `INSERT INTO assets (${cols.join(', ')})
-     VALUES ${placeholders.join(', ')}
-     ON CONFLICT (asset_number, upload_batch_id) DO NOTHING
-     RETURNING id`,
-    params,
-  );
-  return rows;
+    const params = batch.flatMap(asset => [
+      asset.asset_number,
+      asset.description ?? null,
+      asset.responsible ?? null,
+      asset.functional_center ?? null,
+      asset.dependency ?? null,
+      asset.metadata ? JSON.stringify(asset.metadata) : null,
+      batchId,
+    ]);
+
+    const { rows } = await pool.query(
+      `INSERT INTO assets (${cols.join(', ')})
+       VALUES ${placeholders.join(', ')}
+       ON CONFLICT (asset_number, upload_batch_id) DO NOTHING
+       RETURNING id`,
+      params,
+    );
+
+    inserted.push(...rows);
+  }
+
+  return inserted;
 }
 
 // actualiza el status del batch y retorna el registro actualizado

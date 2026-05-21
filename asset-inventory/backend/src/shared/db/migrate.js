@@ -12,9 +12,9 @@ async function runMigrations() {
 
   for (const file of files) {
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
-    console.log(`→ Running migration: ${file}`);
+    console.log(`-> Running migration: ${file}`);
     await pool.query(sql);
-    console.log(`  ✓ Done`);
+    console.log(`  :) Done`);
   }
 
   console.log('\nAll migrations applied successfully.');

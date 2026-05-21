@@ -1,11 +1,16 @@
 const ExcelJS = require('exceljs');
 
-// campos que van como columnas directas en la tabla assets
-const KNOWN_FIELDS = new Set(['asset_number', 'description', 'responsible', 'functional_center', 'dependency']);
+const COLUMN_MAP = {
+  placa:                    'asset_number',
+  descripcion:              'description',
+  responsable:              'responsible',
+  centro_funcional_sistema: 'functional_center',
+};
 
-// normaliza el header de la columna a snake_case sin acentos
+const KNOWN_FIELDS = new Set(Object.values(COLUMN_MAP));
+
 function normalizeKey(raw) {
-  if (!raw) return '';
+  if (raw === null || raw === undefined) return '';
   return String(raw)
     .toLowerCase()
     .trim()
@@ -15,16 +20,24 @@ function normalizeKey(raw) {
     .replace(/[^a-z0-9_]/g, '');
 }
 
-// extrae el valor plano de una celda (maneja fórmulas, rich text, fechas)
 function cellValue(val) {
   if (val === null || val === undefined) return null;
+  if (val instanceof Date) return val.toISOString();
   if (typeof val === 'object') {
-    if (val instanceof Date) return val.toISOString();
-    if (val.result !== undefined) return val.result;       // formula
+    if (val.result !== undefined) return val.result;
     if (val.richText) return val.richText.map(r => r.text).join('');
     return String(val);
   }
   return val;
+}
+
+function cleanAssetNumber(val) {
+  if (!val) return null;
+  return String(val).replace(/^'+/, '').trim();
+}
+
+function isSubheaderRow(cells, headers) {
+  return cells.some(c => normalizeKey(String(c || '')) === 'placa');
 }
 
 async function parseExcel(buffer) {
@@ -32,40 +45,82 @@ async function parseExcel(buffer) {
   await workbook.xlsx.load(buffer);
 
   const sheet = workbook.worksheets[0];
-  if (!sheet) throw new Error('Excel file has no worksheets');
+  if (!sheet) throw new Error('El archivo Excel no tiene hojas de cálculo');
 
-  const rows = [];
+  let headerRowIndex = -1;
   let headers = [];
 
   sheet.eachRow((row, rowNum) => {
-    // row.values es 1-based: el índice 0 es undefined
-    const cells = row.values.slice(1).map(cellValue);
+    if (headerRowIndex !== -1) return;
 
-    if (rowNum === 1) {
-      headers = cells.map(normalizeKey);
-      return;
+    // Leer celda por celda para no perderse columnas que row.values omite
+    const cells = [];
+    for (let col = 1; col <= 20; col++) {
+      cells.push(cellValue(row.getCell(col).value));
+    }
+    const normalized = cells.map(normalizeKey);
+
+    // "placa" debe estar en la segunda columna (índice 1 = columna B)
+    if (normalized[1] === 'placa' && normalized[3] === 'responsable')  {
+      headerRowIndex = rowNum;
+      headers = normalized;
+
+      // LOG TEMPORAL — diagnóstico de headers
+      console.log('=== HEADERS ENCONTRADOS ===');
+      console.log('Fila:', rowNum);
+      console.log('Raw values:', cells);
+      console.log('Normalizados:', normalized);
+      console.log('===========================');
+    }
+  });
+
+  if (headerRowIndex === -1) {
+    throw new Error('No se encontró la columna PLACA en el archivo. Verificar el formato.');
+  }
+
+  const assets = [];
+
+  sheet.eachRow((row, rowNum) => {
+    if (rowNum <= headerRowIndex) return;
+
+    // Leer celda por celda igual que en fase 1
+    const cells = [];
+    for (let col = 1; col <= 20; col++) {
+      cells.push(cellValue(row.getCell(col).value));
     }
 
-    if (cells.every(c => c === null || c === '')) return; // fila vacía
+    if (cells.every(c => c === null || c === '')) return;
+
+    if (isSubheaderRow(cells, headers)) return;
 
     const asset = {};
     const metadata = {};
 
-    headers.forEach((key, i) => {
-      const val = cells[i] ?? null;
-      if (!key) return;
-      if (KNOWN_FIELDS.has(key)) {
-        asset[key] = val !== null ? String(val) : null;
+    headers.forEach((normalizedHeader, i) => {
+      if (!normalizedHeader) return;
+
+      const rawVal = cells[i] ?? null;
+      const val = rawVal !== null && rawVal !== '' ? rawVal : null;
+
+      const mappedField = COLUMN_MAP[normalizedHeader];
+      if (mappedField) {
+        asset[mappedField] = val !== null ? String(val).trim() : null;
       } else {
-        metadata[key] = val;
+        metadata[normalizedHeader] = val;
       }
     });
 
+    if (asset.asset_number) {
+      asset.asset_number = cleanAssetNumber(asset.asset_number);
+    }
+
+    if (!asset.asset_number) return;
+
     asset.metadata = Object.keys(metadata).length ? metadata : null;
-    rows.push(asset);
+    assets.push(asset);
   });
 
-  return rows;
+  return assets;
 }
 
 module.exports = parseExcel;

@@ -13,7 +13,7 @@ async function testConnection() {
   const client = await pool.connect();
   try {
     const { rows } = await client.query('SELECT NOW() AS now');
-    console.log(`✓ Database connected — server time: ${rows[0].now}`);
+    console.log(`:) Database connected — server time: ${rows[0].now}`);
   } finally {
     client.release();
   }

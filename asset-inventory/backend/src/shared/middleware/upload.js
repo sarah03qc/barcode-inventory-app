@@ -1,8 +1,8 @@
 const path = require('path');
 const multer = require('multer');
 
-const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.xlsm', '.csv'];
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB 
 
 function fileFilter(req, file, cb) {
   const ext = path.extname(file.originalname).toLowerCase();

@@ -10,7 +10,7 @@ const EXCEL_MIMES = new Set([
 
 function detectFormat(file) {
   const ext = path.extname(file.originalname).toLowerCase();
-  if (['.xlsx', '.xls'].includes(ext)) return 'excel';
+  if (['.xlsx', '.xls', '.xlsm'].includes(ext)) return 'excel';
   if (ext === '.csv') return 'csv';
   if (EXCEL_MIMES.has(file.mimetype)) return 'excel';
   if (file.mimetype.startsWith('text/')) return 'csv';
