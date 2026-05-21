@@ -1,6 +1,6 @@
 const { pool } = require('../../shared/db/connection');
 
-// inserta un nuevo batch en estado 'processing' y retorna el registro creado
+// inserta un nuevo batch en estado processing y retorna el registro creado
 async function createBatch(filename, totalRecords) {
   const { rows } = await pool.query(
     `INSERT INTO upload_batches (filename, total_records, status)
@@ -11,8 +11,8 @@ async function createBatch(filename, totalRecords) {
   return rows[0];
 }
 
-// divide un array en sub-arrays de tamaño máximo chunkSize
-// necesario porque PostgreSQL tiene un límite de 65535 parámetros por query
+// divide un array en sub-arrays de tamaño maximo chunkSize
+// necesario porque PostgreSQL tiene un limite de 65535 parametros por query
 function chunk(arr, chunkSize) {
   const chunks = [];
   for (let i = 0; i < arr.length; i += chunkSize) {
@@ -21,8 +21,8 @@ function chunk(arr, chunkSize) {
   return chunks;
 }
 
-// bulk insert por lotes para evitar el límite de parámetros de PostgreSQL
-// con 7 columnas por fila el máximo seguro es ~9285 filas por lote
+// bulk insert por lotes para evitar el limite de parametros de PostgreSQL
+// con 7 columnas por fila el maximo seguro es ~9285 filas por lote
 async function insertAssets(assets, batchId) {
   if (!assets.length) return [];
 
@@ -36,7 +36,7 @@ async function insertAssets(assets, batchId) {
     'upload_batch_id',
   ];
   const perRow = cols.length;
-  const chunkSize = Math.floor(65000 / perRow); // ~9285
+  const chunkSize = Math.floor(65000 / perRow);
 
   const batches = chunk(assets, chunkSize);
   const inserted = [];
@@ -79,7 +79,7 @@ async function updateBatchStatus(batchId, status) {
   return rows[0];
 }
 
-// busca un activo por número dentro de un batch específico
+// busca un activo por numero dentro de un batch especifico
 async function findByAssetNumber(assetNumber, batchId) {
   const { rows } = await pool.query(
     `SELECT * FROM assets WHERE asset_number = $1 AND upload_batch_id = $2`,
@@ -88,7 +88,7 @@ async function findByAssetNumber(assetNumber, batchId) {
   return rows[0] || null;
 }
 
-// retorna todos los activos de un batch ordenados por número
+// retorna todos los activos de un batch ordenados por numero
 async function listByBatch(batchId) {
   const { rows } = await pool.query(
     `SELECT * FROM assets WHERE upload_batch_id = $1 ORDER BY asset_number`,
@@ -97,4 +97,20 @@ async function listByBatch(batchId) {
   return rows;
 }
 
-module.exports = { createBatch, insertAssets, updateBatchStatus, findByAssetNumber, listByBatch };
+// busca un batch por ID, usado por inventory.service para validar existencia y estado
+async function findBatchById(batchId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM upload_batches WHERE id = $1`,
+    [batchId]
+  );
+  return rows[0] || null;
+}
+
+module.exports = {
+  createBatch,
+  insertAssets,
+  updateBatchStatus,
+  findByAssetNumber,
+  findBatchById,
+  listByBatch,
+};

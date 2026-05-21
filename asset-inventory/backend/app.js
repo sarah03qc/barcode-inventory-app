@@ -9,6 +9,9 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/assets', assetsRoutes);
 
+const inventoryRoutes = require('./src/routes/inventory.routes');
+app.use('/api/inventory', inventoryRoutes);
+
 // debe ir al final, después de todas las rutas
 app.use(errorHandler);
 
