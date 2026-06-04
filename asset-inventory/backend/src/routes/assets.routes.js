@@ -44,6 +44,28 @@ router.post('/upload', upload.single('file'), controller.uploadAssets);
 
 /**
  * @swagger
+ * /api/assets/active-batch:
+ *   get:
+ *     summary: Retorna el batch mas reciente en estado done
+ *     tags: [Assets]
+ *     responses:
+ *       200:
+ *         description: Batch activo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Batch'
+ *       404:
+ *         description: No hay batch activo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/active-batch', controller.getActiveBatch);
+
+/**
+ * @swagger
  * /api/assets/{batchId}:
  *   get:
  *     summary: Retorna todos los activos de un batch

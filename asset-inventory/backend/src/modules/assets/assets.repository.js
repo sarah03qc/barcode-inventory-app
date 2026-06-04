@@ -106,6 +106,17 @@ async function findBatchById(batchId) {
   return rows[0] || null;
 }
 
+// retorna el batch mas reciente en estado done
+async function findActiveBatch() {
+  const { rows } = await pool.query(
+    `SELECT * FROM upload_batches
+     WHERE status = 'done'
+     ORDER BY uploaded_at DESC
+     LIMIT 1`
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   createBatch,
   insertAssets,
@@ -113,4 +124,5 @@ module.exports = {
   findByAssetNumber,
   findBatchById,
   listByBatch,
+  findActiveBatch,
 };

@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Inventario</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+      min-height: 100vh;
+    }
+
+    .screen { display: none; min-height: 100vh; flex-direction: column; }
+    .screen.active { display: flex; }
+
+    .setup-screen {
+      padding: 2rem 1.5rem;
+      justify-content: center;
+      gap: 1.5rem;
+    }
+
+    .logo { text-align: center; margin-bottom: 1rem; }
+    .logo h1 { font-size: 1.5rem; font-weight: 700; color: #38bdf8; }
+    .logo p { font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem; }
+
+    .card {
+      background: #1e293b;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      border: 1px solid #334155;
+    }
+
+    .card h2 { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin-bottom: 1rem; }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+
+    input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      color: #f1f5f9;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus { border-color: #38bdf8; }
+
+    .btn {
+      width: 100%;
+      padding: 0.85rem;
+      border-radius: 0.75rem;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.98); opacity: 0.9; }
+    .btn-primary { background: #38bdf8; color: #0f172a; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-ghost { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+
+    .error-msg {
+      background: #450a0a;
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    .scanner-screen { background: #000; }
+
+    .scanner-header {
+      background: #0f172a;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    .session-info .location { font-size: 0.9rem; font-weight: 600; color: #f1f5f9; }
+    .session-info .custodian { font-size: 0.75rem; color: #94a3b8; margin-top: 0.1rem; }
+
+    .scan-counter { text-align: right; }
+    .scan-counter .count { font-size: 1.5rem; font-weight: 700; color: #38bdf8; line-height: 1; }
+    .scan-counter .label { font-size: 0.65rem; color: #64748b; text-transform: uppercase; }
+
+    .camera-container {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+      background: #000;
+    }
+
+    /* Quagga inyecta su propio video y canvas aqui */
+    .camera-container video,
+    .camera-container canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover;
+    }
+
+    .camera-container canvas.drawingBuffer {
+      display: none;
+    }
+
+    .scan-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .scan-frame {
+      width: 240px;
+      height: 240px;
+      position: relative;
+    }
+
+    .scan-frame::before, .scan-frame::after,
+    .scan-frame .corner-br, .scan-frame .corner-bl {
+      content: '';
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border-color: #38bdf8;
+      border-style: solid;
+    }
+
+    .scan-frame::before { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+    .scan-frame::after { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+    .scan-frame .corner-br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+    .scan-frame .corner-bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+
+    .scan-line {
+      position: absolute;
+      left: 4px; right: 4px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+      animation: scanline 2s ease-in-out infinite;
+    }
+
+    @keyframes scanline {
+      0%, 100% { top: 10%; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      50% { top: 90%; }
+    }
+
+    .scan-hint {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.6);
+      z-index: 10;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 6rem;
+      left: 1rem; right: 1rem;
+      border-radius: 0.75rem;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transform: translateY(120%);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 100;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .toast.show { transform: translateY(0); }
+    .toast.located { background: #052e16; border: 1px solid #16a34a; }
+    .toast.external { background: #422006; border: 1px solid #d97706; }
+    .toast.duplicate { background: #1e293b; border: 1px solid #475569; }
+    .toast.error { background: #450a0a; border: 1px solid #ef4444; }
+
+    .toast-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .toast-body { flex: 1; min-width: 0; }
+    .toast-title { font-weight: 700; font-size: 0.9rem; }
+    .toast.located .toast-title { color: #4ade80; }
+    .toast.external .toast-title { color: #fbbf24; }
+    .toast.duplicate .toast-title { color: #94a3b8; }
+    .toast.error .toast-title { color: #f87171; }
+    .toast-desc { font-size: 0.78rem; color: #94a3b8; margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .scanner-footer {
+      background: #0f172a;
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #1e293b;
+    }
+
+    .stats-row { display: flex; justify-content: space-around; margin-bottom: 1rem; }
+    .stat { text-align: center; }
+    .stat .value { font-size: 1.25rem; font-weight: 700; }
+    .stat .value.located { color: #4ade80; }
+    .stat .value.external { color: #fbbf24; }
+    .stat .value.duplicate { color: #64748b; }
+    .stat .label { font-size: 0.65rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .confirm-screen { padding: 2rem 1.5rem; justify-content: center; gap: 1.5rem; }
+    .confirm-screen .summary { text-align: center; }
+    .confirm-screen h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .confirm-screen p { font-size: 0.85rem; color: #94a3b8; }
+
+    .big-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+    .big-stat { background: #1e293b; border-radius: 0.75rem; padding: 1rem 0.5rem; text-align: center; border: 1px solid #334155; }
+    .big-stat .value { font-size: 2rem; font-weight: 700; }
+    .big-stat .value.located { color: #4ade80; }
+    .big-stat .value.external { color: #fbbf24; }
+    .big-stat .value.duplicate { color: #64748b; }
+    .big-stat .label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+
+    .btn-row { display: flex; gap: 0.75rem; }
+    .btn-row .btn { flex: 1; }
+  </style>
+</head>
+<body>
+
+<!-- PANTALLA 1: SETUP -->
+<div class="screen setup-screen active" id="screen-setup">
+  <div class="logo">
+    <h1>Inventario</h1>
+    <p>Sistema de escaneo de activos</p>
+  </div>
+
+  <div class="card" id="batch-info-card" style="display:none">
+    <h2>Archivo activo</h2>
+    <div style="font-size:0.85rem; color:#94a3b8;" id="batch-info-text">--</div>
+  </div>
+
+  <div class="error-msg" id="batch-error"></div>
+
+  <div class="card">
+    <h2>Nueva sesion</h2>
+    <div class="field">
+      <label>Ubicacion</label>
+      <input type="text" id="input-location" placeholder="Ej. Edificio TEC Piso 2">
+    </div>
+    <div class="field">
+      <label>Custodio</label>
+      <input type="text" id="input-custodian" placeholder="Nombre del responsable">
+    </div>
+  </div>
+
+  <div class="error-msg" id="setup-error"></div>
+  <button class="btn btn-primary" id="btn-start" disabled>Iniciar sesion</button>
+</div>
+
+  <!-- PANTALLA 2: SCANNER -->
+  <div class="screen scanner-screen" id="screen-scanner">
+    <div class="scanner-header">
+      <div class="session-info">
+        <div class="location" id="header-location">--</div>
+        <div class="custodian" id="header-custodian">--</div>
+      </div>
+      <div class="scan-counter">
+        <div class="count" id="header-count">0</div>
+        <div class="label">escaneos</div>
+      </div>
+    </div>
+    <div class="camera-container">
+      <div class="scan-overlay">
+        <div class="scan-frame">
+          <div class="corner-br"></div>
+          <div class="corner-bl"></div>
+          <div class="scan-line"></div>
+        </div>
+      </div>
+      <div class="scan-hint">Apunta la camara al codigo de barras</div>
+    </div>
+    <div class="toast" id="toast">
+      <div class="toast-icon" id="toast-icon"></div>
+      <div class="toast-body">
+        <div class="toast-title" id="toast-title"></div>
+        <div class="toast-desc" id="toast-desc"></div>
+      </div>
+    </div>
+    <div class="scanner-footer">
+      <div class="stats-row">
+        <div class="stat">
+          <div class="value located" id="stat-located">0</div>
+          <div class="label">Ubicados</div>
+        </div>
+        <div class="stat">
+          <div class="value external" id="stat-external">0</div>
+          <div class="label">Externos</div>
+        </div>
+        <div class="stat">
+          <div class="value duplicate" id="stat-duplicate">0</div>
+          <div class="label">Duplicados</div>
+        </div>
+      </div>
+      <button class="btn btn-danger" id="btn-close-session">Cerrar sesion</button>
+    </div>
+  </div>
+
+  <!-- PANTALLA 3: CONFIRMAR CIERRE -->
+  <div class="screen confirm-screen" id="screen-confirm">
+    <div class="summary">
+      <h2>Resumen de sesion</h2>
+      <p id="confirm-location-info">--</p>
+    </div>
+    <div class="big-stats">
+      <div class="big-stat">
+        <div class="value located" id="confirm-located">0</div>
+        <div class="label">Ubicados</div>
+      </div>
+      <div class="big-stat">
+        <div class="value external" id="confirm-external">0</div>
+        <div class="label">Externos</div>
+      </div>
+      <div class="big-stat">
+        <div class="value duplicate" id="confirm-duplicate">0</div>
+        <div class="label">Duplicados</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Confirmar cierre</h2>
+      <p style="font-size:0.85rem; color:#94a3b8;">
+        Una vez cerrada la sesion no se pueden registrar mas escaneos.
+      </p>
+    </div>
+    <div class="error-msg" id="confirm-error"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btn-back-scan">Volver</button>
+      <button class="btn btn-danger" id="btn-confirm-close">Cerrar sesion</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+  <script>
+    const API = '';
+    let sessionId = null;
+    let activeBatchId = null;
+    let toastTimer = null;
+    let cooldown = false;
+
+    const stats = { located: 0, external: 0, duplicate: 0 };
+
+    function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    }
+
+    function showError(elId, msg) {
+    const el = document.getElementById(elId);
+    el.textContent = msg;
+    el.style.display = 'block';
+    }
+
+    function hideError(elId) {
+    document.getElementById(elId).style.display = 'none';
+    }
+
+    function showToast(type, title, desc) {
+    const toast = document.getElementById('toast');
+    const icons = { located: '✅', external: '⚠️', duplicate: '🔁', error: '❌' };
+    toast.className = 'toast ' + type;
+    document.getElementById('toast-icon').textContent = icons[type] || '?';
+    document.getElementById('toast-title').textContent = title;
+    document.getElementById('toast-desc').textContent = desc;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    function updateStats() {
+    document.getElementById('stat-located').textContent   = stats.located;
+    document.getElementById('stat-external').textContent  = stats.external;
+    document.getElementById('stat-duplicate').textContent = stats.duplicate;
+    document.getElementById('header-count').textContent   =
+        stats.located + stats.external + stats.duplicate;
+    }
+
+    // al cargar la pagina resuelve el batch activo automaticamente
+    async function loadActiveBatch() {
+    try {
+        const res = await fetch(API + '/api/assets/active-batch');
+        if (!res.ok) throw new Error('No hay archivo activo');
+        const batch = await res.json();
+        activeBatchId = batch.id;
+
+        // mostrar info del batch al usuario
+        document.getElementById('batch-info-card').style.display = 'block';
+        document.getElementById('batch-info-text').textContent =
+        batch.filename + ' — ' + batch.total_records.toLocaleString() + ' activos';
+
+        // habilitar el boton ahora que hay batch
+        document.getElementById('btn-start').disabled = false;
+    } catch (e) {
+        showError('batch-error', 'No hay archivo de activos cargado. Sube uno primero.');
+    }
+    }
+
+    async function createSession(location, custodian) {
+    const res = await fetch(API + '/api/inventory/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location, custodian, upload_batch_id: activeBatchId })
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Error al crear sesion');
+    }
+    return res.json();
+    }
+
+    async function registerScan(code) {
+    const res = await fetch(API + '/api/inventory/sessions/' + sessionId + '/scans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scanned_code: code })
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Error al registrar escaneo');
+    }
+    return res.json();
+    }
+
+    async function closeSession() {
+    const res = await fetch(API + '/api/inventory/sessions/' + sessionId + '/close', {
+        method: 'PATCH'
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Error al cerrar sesion');
+    }
+    return res.json();
+    }
+
+    async function handleScan(code) {
+    if (cooldown) return;
+    cooldown = true;
+
+    try {
+        const scan = await registerScan(code);
+        stats[scan.scan_type]++;
+        updateStats();
+
+        const labels = { located: 'Activo ubicado', external: 'Activo externo', duplicate: 'Duplicado' };
+        const descs  = {
+        located:   scan.asset ? scan.asset.description : code,
+        external:  'No pertenece a esta dependencia',
+        duplicate: 'Ya fue escaneado antes',
+        };
+
+        showToast(scan.scan_type, labels[scan.scan_type], descs[scan.scan_type]);
+    } catch (e) {
+        showToast('error', 'Error', e.message);
+    }
+
+    setTimeout(() => { cooldown = false; }, 1500);
+    }
+
+    function startQuagga() {
+    Quagga.init({
+        inputStream: {
+        name: 'Live',
+        type: 'LiveStream',
+        target: document.querySelector('.camera-container'),
+        constraints: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+        },
+        },
+        decoder: {
+        readers: [
+            'code_128_reader',
+            'ean_reader',
+            'ean_8_reader',
+            'code_39_reader',
+            'upc_reader',
+            'upc_e_reader',
+        ],
+        },
+        locate: true,
+    }, (err) => {
+        if (err) {
+        showToast('error', 'Error de camara', err.message || String(err));
+        return;
+        }
+        Quagga.start();
+    });
+
+    Quagga.onDetected((data) => {
+        handleScan(data.codeResult.code);
+    });
+    }
+
+    function stopQuagga() {
+    Quagga.stop();
+    }
+
+    document.getElementById('btn-start').addEventListener('click', async () => {
+    hideError('setup-error');
+
+    const location  = document.getElementById('input-location').value.trim();
+    const custodian = document.getElementById('input-custodian').value.trim();
+
+    if (!location || !custodian) {
+        showError('setup-error', 'Ubicacion y custodio son requeridos');
+        return;
+    }
+
+    try {
+        const session = await createSession(location, custodian);
+        sessionId = session.id;
+
+        document.getElementById('header-location').textContent  = location;
+        document.getElementById('header-custodian').textContent = custodian;
+
+        showScreen('screen-scanner');
+        startQuagga();
+    } catch (e) {
+        showError('setup-error', e.message);
+    }
+    });
+
+    document.getElementById('btn-close-session').addEventListener('click', () => {
+    document.getElementById('confirm-location-info').textContent =
+        document.getElementById('header-location').textContent + ' — ' +
+        document.getElementById('header-custodian').textContent;
+    document.getElementById('confirm-located').textContent   = stats.located;
+    document.getElementById('confirm-external').textContent  = stats.external;
+    document.getElementById('confirm-duplicate').textContent = stats.duplicate;
+    showScreen('screen-confirm');
+    });
+
+    document.getElementById('btn-back-scan').addEventListener('click', () => {
+    showScreen('screen-scanner');
+    });
+
+    document.getElementById('btn-confirm-close').addEventListener('click', async () => {
+    hideError('confirm-error');
+    try {
+        await closeSession();
+        stopQuagga();
+        sessionId = null;
+        stats.located = stats.external = stats.duplicate = 0;
+        updateStats();
+        document.getElementById('input-location').value  = '';
+        document.getElementById('input-custodian').value = '';
+        showScreen('screen-setup');
+    } catch (e) {
+        showError('confirm-error', e.message);
+    }
+    });
+
+    // iniciar cargando el batch activo
+    loadActiveBatch();
+  </script>
+</body>
+</html>

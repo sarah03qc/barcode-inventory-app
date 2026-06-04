@@ -33,4 +33,14 @@ async function findAsset(req, res, next) {
   }
 }
 
-module.exports = { uploadAssets, getAssetsByBatch, findAsset };
+// GET /api/assets/active-batch
+async function getActiveBatch(req, res, next) {
+  try {
+    const batch = await service.getActiveBatch();
+    return res.json(batch);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { uploadAssets, getAssetsByBatch, findAsset, getActiveBatch };

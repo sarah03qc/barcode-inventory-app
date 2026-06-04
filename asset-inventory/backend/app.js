@@ -1,6 +1,7 @@
 const express = require('express');
 const assetsRoutes = require('./src/routes/assets.routes');
 const errorHandler = require('./src/shared/middleware/errorHandler');
+const path = require('path');
 
 const app = express();
 
@@ -17,6 +18,8 @@ app.use('/api/assets', assetsRoutes);
 
 const inventoryRoutes = require('./src/routes/inventory.routes');
 app.use('/api/inventory', inventoryRoutes);
+
+app.use('/scanner', express.static(path.join(__dirname, 'src/scanner')));
 
 // debe ir al final, después de todas las rutas
 app.use(errorHandler);

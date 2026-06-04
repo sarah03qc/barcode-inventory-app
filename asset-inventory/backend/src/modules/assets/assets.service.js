@@ -48,7 +48,19 @@ async function getAssetsByBatch(batchId) {
   return repository.listByBatch(batchId);
 }
 
-// busca un activo por número dentro de un batch; lanza 404 si no existe
+// retorna el batch activo (ultimo en estado done)
+async function getActiveBatch() {
+  const batch = await repository.findActiveBatch();
+  if (!batch) {
+    throw Object.assign(
+      new Error('No hay ningun batch activo. Carga un archivo primero.'),
+      { statusCode: 404 },
+    );
+  }
+  return batch;
+}
+
+// busca un activo por número dentro de un batch, lanza 404 si no existe
 async function findAsset(assetNumber, batchId) {
   const asset = await repository.findByAssetNumber(assetNumber, batchId);
   if (!asset) {
@@ -60,4 +72,4 @@ async function findAsset(assetNumber, batchId) {
   return asset;
 }
 
-module.exports = { uploadAssets, getAssetsByBatch, findAsset };
+module.exports = { uploadAssets, getAssetsByBatch, findAsset, getActiveBatch };
