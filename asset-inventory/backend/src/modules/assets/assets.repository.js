@@ -117,6 +117,35 @@ async function findActiveBatch() {
   return rows[0] || null;
 }
 
+// actualiza la trazabilidad de la ultima lectura fisica de un activo.
+// se llama unicamente cuando un escaneo resulta en scan_type = located.
+// siempre sobrescribe con los datos del escaneo mas reciente, sin
+// importar la sesion anterior que pudo haberlo escaneado.
+async function updateLastScan(assetId, { sessionId, custodian, location, scannedAt }) {
+  const { rows } = await pool.query(
+    `UPDATE assets
+     SET last_scanned_at = $1,
+         last_scanned_by = $2,
+         last_scanned_location = $3,
+         last_scan_session_id = $4
+     WHERE id = $5
+     RETURNING *`,
+    [scannedAt, custodian, location, sessionId, assetId],
+  );
+  return rows[0];
+}
+
+// busca un activo por numero de placa en TODA la tabla, sin filtrar
+// por batch. El batch ya no determina pertenencia ni busqueda real,
+// solo sirve como registro historico de cuando se cargo cada archivo.
+async function findByAssetNumberGlobal(assetNumber) {
+  const { rows } = await pool.query(
+    `SELECT * FROM assets WHERE asset_number = $1 LIMIT 1`,
+    [assetNumber],
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   createBatch,
   insertAssets,
@@ -125,4 +154,6 @@ module.exports = {
   findBatchById,
   listByBatch,
   findActiveBatch,
+  updateLastScan,
+  findByAssetNumberGlobal,
 };

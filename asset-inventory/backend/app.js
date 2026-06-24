@@ -21,6 +21,9 @@ app.use('/api/inventory', inventoryRoutes);
 
 app.use('/scanner', express.static(path.join(__dirname, 'src/scanner')));
 
+const reportsRoutes = require('./src/routes/reports.routes');
+app.use('/api/reports', reportsRoutes);
+
 // debe ir al final, después de todas las rutas
 app.use(errorHandler);
 

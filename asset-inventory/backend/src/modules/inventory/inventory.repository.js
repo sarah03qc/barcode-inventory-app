@@ -32,13 +32,16 @@ async function closeSession(sessionId) {
   return rows[0] || null;
 }
 
-// Inserta un registro de escaneo y retorna la fila creada
-async function insertScan({ session_id, scanned_code, asset_id, scan_type }) {
+// Inserta un registro de escaneo y retorna la fila creada.
+// external_reason solo aplica cuando scan_type = 'external', distingue
+// entre codigo desconocido ('unknown') y activo de otra sede ('other_campus').
+// Para located y duplicate se pasa null.
+async function insertScan({ session_id, scanned_code, asset_id, scan_type, external_reason = null }) {
   const { rows } = await pool.query(
-    `INSERT INTO scan_records (session_id, scanned_code, asset_id, scan_type)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO scan_records (session_id, scanned_code, asset_id, scan_type, external_reason)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
-    [session_id, scanned_code, asset_id, scan_type]
+    [session_id, scanned_code, asset_id, scan_type, external_reason]
   );
   return rows[0];
 }
