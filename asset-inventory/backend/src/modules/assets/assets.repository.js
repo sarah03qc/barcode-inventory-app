@@ -21,8 +21,23 @@ function chunk(arr, chunkSize) {
   return chunks;
 }
 
-// bulk insert por lotes para evitar el limite de parametros de PostgreSQL
-// con 7 columnas por fila el maximo seguro es ~9285 filas por lote
+// Upsert por lotes de activos usando asset_number como llave unica global.
+//
+// Si el asset_number ya existe en la BD (de una carga anterior), se
+// actualizan sus datos del Excel (description, responsible, functional_center,
+// dependency, metadata, upload_batch_id) con la version mas reciente del
+// archivo. El upload_batch_id tambien se actualiza al batch nuevo, porque
+// representa cual fue la carga mas reciente que trajo esta informacion.
+//
+// Los campos de trazabilidad de escaneo real (last_scanned_at, last_scanned_by,
+// last_scanned_location, last_scan_session_id) NUNCA se tocan aqui. Esos
+// solo se actualizan cuando ocurre un escaneo fisico real con la app,
+// nunca por una carga de archivo.
+//
+// Si el asset_number no existe, se inserta como activo nuevo con los
+// campos de trazabilidad en null (todavia no ha sido escaneado).
+//
+// Con 7 columnas por fila el maximo seguro es ~9285 filas por lote.
 async function insertAssets(assets, batchId) {
   if (!assets.length) return [];
 
@@ -39,7 +54,7 @@ async function insertAssets(assets, batchId) {
   const chunkSize = Math.floor(65000 / perRow);
 
   const batches = chunk(assets, chunkSize);
-  const inserted = [];
+  const upserted = [];
 
   for (const batch of batches) {
     const placeholders = batch.map((_, i) =>
@@ -59,15 +74,21 @@ async function insertAssets(assets, batchId) {
     const { rows } = await pool.query(
       `INSERT INTO assets (${cols.join(', ')})
        VALUES ${placeholders.join(', ')}
-       ON CONFLICT (asset_number, upload_batch_id) DO NOTHING
+       ON CONFLICT (asset_number) DO UPDATE SET
+         description        = EXCLUDED.description,
+         responsible        = EXCLUDED.responsible,
+         functional_center  = EXCLUDED.functional_center,
+         dependency         = EXCLUDED.dependency,
+         metadata           = EXCLUDED.metadata,
+         upload_batch_id    = EXCLUDED.upload_batch_id
        RETURNING id`,
       params,
     );
 
-    inserted.push(...rows);
+    upserted.push(...rows);
   }
 
-  return inserted;
+  return upserted;
 }
 
 // actualiza el status del batch y retorna el registro actualizado
@@ -118,9 +139,9 @@ async function findActiveBatch() {
 }
 
 // actualiza la trazabilidad de la ultima lectura fisica de un activo.
-// se llama unicamente cuando un escaneo resulta en scan_type = located.
-// siempre sobrescribe con los datos del escaneo mas reciente, sin
-// importar la sesion anterior que pudo haberlo escaneado.
+// se llama unicamente cuando un escaneo resulta en located o external
+// de otra sede. Siempre sobrescribe con los datos del escaneo mas
+// reciente, sin importar la sesion anterior que pudo haberlo escaneado.
 async function updateLastScan(assetId, { sessionId, custodian, location, scannedAt }) {
   const { rows } = await pool.query(
     `UPDATE assets

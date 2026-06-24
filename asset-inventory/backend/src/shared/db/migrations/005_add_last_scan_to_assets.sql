@@ -11,7 +11,16 @@ ALTER TABLE assets
 CREATE INDEX IF NOT EXISTS idx_assets_last_scan_session_id ON assets (last_scan_session_id);
 
 -- Poblar las columnas nuevas con los datos historicos del Excel,
--- usando los campos de "lectura" que ya venian en metadata (JSONB)
+-- usando los campos de "lectura" que ya venian en metadata (JSONB).
+--
+-- IMPORTANTE: este UPDATE solo aplica a activos que todavia NO tienen
+-- trazabilidad real de escaneo (last_scan_session_id IS NULL). Esto es
+-- lo que hace que esta migracion sea segura de correr multiples veces
+-- sin riesgo de pisar un escaneo real con datos viejos del Excel.
+-- Sin esta condicion, cada vez que se corre npm run migrate (por ejemplo
+-- al agregar una migracion nueva), este UPDATE volveria a sobrescribir
+-- la trazabilidad real de cualquier activo ya escaneado con la app.
+--
 -- last_scan_session_id se queda en NULL porque esa lectura historica
 -- no fue hecha mediante una sesion de esta aplicacion.
 -- last_scanned_at se queda en NULL porque el Excel no trae una fecha
@@ -24,6 +33,7 @@ SET
     metadata->>'centro_funcional_lectura'
   )
 WHERE metadata IS NOT NULL
+  AND last_scan_session_id IS NULL
   AND (
     metadata->>'responsable_lectura' IS NOT NULL
     OR metadata->>'ubicacion_fisica' IS NOT NULL
