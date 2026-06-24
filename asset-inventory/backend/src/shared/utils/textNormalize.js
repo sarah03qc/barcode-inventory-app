@@ -1,28 +1,26 @@
 // Normaliza texto para comparaciones tolerantes a mayusculas,
-// tildes y espacios extra. Usado para comparar nombres de sede
-// que vienen con formato inconsistente desde el Excel institucional.
+// tildes y espacios. El dato real del Excel institucional viene
+// con el texto completamente pegado y a veces con encoding roto
+// en las tildes (ej: "CENTROACADÃ‰MICODEALAJUELA").
 function normalizeText(text) {
   if (!text) return '';
   return String(text)
     .toUpperCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // elimina tildes
-    .replace(/\s+/g, ' ')            // colapsa espacios multiples
+    .replace(/\s+/g, '')             // elimina todos los espacios
     .trim();
 }
 
-// Lista de sedes que se consideran externas a Alajuela.
-// Cualquier functional_center que contenga alguna de estas palabras
-// se clasifica como externo. Si no contiene ninguna, se asume Alajuela
-// (incluye casos ambiguos como "Aula 5" o "Lab 2" que no mencionan sede).
-const OTHER_CAMPUSES = ['SAN JOSE', 'CARTAGO', 'SAN CARLOS', 'LIMON'];
-
-// Determina si un functional_center corresponde a otra sede distinta
-// de Alajuela, usando comparacion normalizada para evitar falsos
-// negativos por tildes o capitalizacion inconsistente.
+// Un activo se considera propio de Alajuela unicamente si su
+// functional_center menciona explicitamente "Alajuela". Cualquier
+// otro valor (otra sede, departamento central, activo no localizado,
+// o escuela sin sede mencionada) se considera externo. Esta regla
+// es intencionalmente estricta: es mas seguro asumir externo por
+// defecto que asumir Alajuela incorrectamente.
 function isOtherCampus(functionalCenter) {
   const normalized = normalizeText(functionalCenter);
-  return OTHER_CAMPUSES.some(campus => normalized.includes(campus));
+  return !normalized.includes('ALAJUELA');
 }
 
 module.exports = { normalizeText, isOtherCampus };

@@ -65,6 +65,8 @@ async function registerScan(sessionId, scanned_code) {
     throw { status: 400, message: 'scanned_code es requerido' };
   }
 
+  scanned_code = scanned_code.trim();
+
   const session = await inventoryRepo.findSessionById(sessionId);
   if (!session) {
     throw { status: 404, message: `Sesion ${sessionId} no encontrada` };
