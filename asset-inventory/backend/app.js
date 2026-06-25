@@ -24,6 +24,9 @@ app.use('/scanner', express.static(path.join(__dirname, 'src/scanner')));
 const reportsRoutes = require('./src/routes/reports.routes');
 app.use('/api/reports', reportsRoutes);
 
+const exportRoutes = require('./src/routes/export.routes');
+app.use('/api/export', exportRoutes);
+
 // debe ir al final, después de todas las rutas
 app.use(errorHandler);
 
