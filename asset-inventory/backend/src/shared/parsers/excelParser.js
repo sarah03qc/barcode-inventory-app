@@ -64,13 +64,6 @@ async function parseExcel(buffer) {
     if (normalized[1] === 'placa' && normalized[3] === 'responsable')  {
       headerRowIndex = rowNum;
       headers = normalized;
-
-      // LOG TEMPORAL — diagnóstico de headers
-      console.log('=== HEADERS ENCONTRADOS ===');
-      console.log('Fila:', rowNum);
-      console.log('Raw values:', cells);
-      console.log('Normalizados:', normalized);
-      console.log('===========================');
     }
   });
 
